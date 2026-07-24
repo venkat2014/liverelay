@@ -8,21 +8,16 @@
 :root{--bg:#0b0d10;--panel:#15181c;--border:#262b31;--text:#e9edf1;--muted:#8b939c;}
 *{box-sizing:border-box;}
 body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center;}
-.topbar{position:relative;width:100%;padding:14px 60px;text-align:center;border-bottom:1px solid var(--border);letter-spacing:2px;font-weight:700;font-size:14px;color:var(--muted);}
+.topbar{position:relative;width:100%;padding:14px 56px;text-align:center;border-bottom:1px solid var(--border);letter-spacing:2px;font-weight:700;font-size:14px;color:var(--muted);}
 .topbar b{color:var(--text);}
-.topbar img#siteLogo{position:absolute;top:6px;right:14px;height:32px;width:auto;border-radius:6px;display:none;}
-.wrap{width:100%;max-width:1200px;padding:16px;display:flex;flex-direction:column;gap:14px;}
+.topbar img#siteLogo{position:absolute;top:6px;right:10px;height:30px;width:auto;max-width:110px;object-fit:contain;border-radius:6px;display:none;}
+.wrap{width:100%;max-width:700px;padding:16px;display:flex;flex-direction:column;gap:14px;}
 .card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:14px;}
-.main-row{display:flex;flex-direction:column;gap:14px;width:100%;}
-.player-col{flex:2 1 0;min-width:0;}
-.chat-col{flex:1 1 0;min-width:0;}
 .viewer-frame{width:100%;aspect-ratio:16/9;border:0;border-radius:10px;background:#000;display:block;}
-.chat-frame{width:100%;height:360px;border:0;border-radius:10px;background:#000;display:block;}
 
-/* Side-by-side layout on wider screens: chat on the right */
-@media (min-width:800px){
-  .main-row{flex-direction:row;align-items:stretch;}
-  .chat-frame{height:100%;min-height:480px;}
+@media (max-width:480px){
+  .topbar{padding:12px 48px;font-size:12px;}
+  .topbar img#siteLogo{height:24px;max-width:90px;top:8px;right:8px;}
 }
 </style>
 </head>
@@ -35,10 +30,7 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,S
 
   <div class="wrap">
     <p id="liveTitle" style="display:none;text-align:center;font-weight:600;"></p>
-    <div class="main-row">
-      <div class="player-col card" id="playerBox"></div>
-      <div class="chat-col card" id="chatBox"></div>
-    </div>
+    <div class="card" id="playerBox"></div>
   </div>
 
 <script>
@@ -73,11 +65,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const parent = window.location.hostname || "localhost";
   const playerBox = document.getElementById("playerBox");
-  const chatBox = document.getElementById("chatBox");
 
   if (CONFIG.PLATFORM === "twitch") {
     playerBox.innerHTML = `<iframe class="viewer-frame" src="https://player.twitch.tv/?channel=${CONFIG.CHANNEL}&parent=${parent}&muted=false" allowfullscreen></iframe>`;
-    chatBox.innerHTML = `<iframe class="chat-frame" src="https://www.twitch.tv/embed/${CONFIG.CHANNEL}/chat?parent=${parent}"></iframe>`;
   }
   // else if (CONFIG.PLATFORM === "kick") {
   //   ... add Kick embed code here later ...
