@@ -14,6 +14,7 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,S
 .card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:14px;}
 video{width:100%;border-radius:10px;background:#000;display:block;aspect-ratio:9/16;object-fit:cover;}
 input[type="text"],input[type="password"]{width:100%;padding:12px;border-radius:10px;border:1px solid var(--border);background:#0e1013;color:var(--text);font-size:15px;}
+textarea{width:100%;padding:12px;border-radius:10px;border:1px solid var(--border);background:#0e1013;color:var(--text);font-size:15px;font-family:inherit;resize:vertical;min-height:60px;}
 label{font-size:12px;color:var(--muted);display:block;margin-bottom:6px;}
 button{width:100%;padding:14px;border-radius:10px;border:none;font-size:16px;font-weight:700;cursor:pointer;}
 .btn-live{background:var(--live);color:white;}
@@ -21,6 +22,7 @@ button{width:100%;padding:14px;border-radius:10px;border:none;font-size:16px;fon
 .btn-stop{background:#2a2e34;color:white;border:1px solid var(--border);}
 .btn-share{background:#25d366;color:#04210f;}
 .btn-copy{background:#2a2e34;color:white;border:1px solid var(--border);}
+.btn-unlock{background:#3a7bfd;color:white;}
 .row{display:flex;gap:10px;}
 .row>*{flex:1;}
 .status{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--muted);}
@@ -29,13 +31,25 @@ button{width:100%;padding:14px;border-radius:10px;border:none;font-size:16px;fon
 .dot.pulse{animation:pulse 1.2s infinite;}
 @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(224,36,60,.5);}70%{box-shadow:0 0 0 8px rgba(224,36,60,0);}100%{box-shadow:0 0 0 0 rgba(224,36,60,0);}}
 .small{font-size:12px;color:var(--muted);text-align:center;}
+.error{font-size:13px;color:var(--live);text-align:center;min-height:16px;}
 </style>
 </head>
 <body>
 
   <div class="topbar"><b id="siteNameLabel">LIVECAST</b> &nbsp;· REPORTER</div>
 
-  <div class="wrap">
+  <!-- PASSWORD GATE: shown until reporter unlocks -->
+  <div class="wrap" id="gateWrap">
+    <div class="card">
+      <label for="gatePassword">Reporter Password</label>
+      <input type="password" id="gatePassword" placeholder="Enter password" autocomplete="off">
+      <p class="error" id="gateError">&nbsp;</p>
+      <button class="btn-unlock" id="unlockBtn" style="margin-top:6px;">UNLOCK</button>
+    </div>
+  </div>
+
+  <!-- MAIN APP: hidden until password is correct -->
+  <div class="wrap" id="appWrap" style="display:none;">
     <div class="card"><video id="preview" autoplay muted playsinline></video></div>
 
     <div class="card">
@@ -44,9 +58,8 @@ button{width:100%;padding:14px;border-radius:10px;border:none;font-size:16px;fon
     </div>
 
     <div class="card">
-      <label for="streamKey">Stream Key</label>
-      <input type="password" id="streamKey" placeholder="Paste your stream key here">
-      <p class="small">Not saved anywhere. Paste it fresh each time.</p>
+      <label for="tickerInput">Scrolling Text (optional)</label>
+      <textarea id="tickerInput" placeholder="e.g. Breaking news scrolls here..."></textarea>
     </div>
 
     <div class="card">
@@ -75,13 +88,19 @@ button{width:100%;padding:14px;border-radius:10px;border:none;font-size:16px;fon
 /* ======================================================
    EDIT HERE ONLY — everything below this box never changes.
    Make a copy of this file per website (livecast1.html, livecast2.html...)
-   and change these 4 lines for each one.
+   and change these lines for each one.
+
+   NOTE: STREAM_KEY and REPORTER_PASSWORD are visible to anyone who
+   views this page's source code. This is NOT real security — it just
+   keeps casual/curious people from going live on your channel.
 ====================================================== */
 const CONFIG = {
   SITE_NAME: "AYAAN NEWS",              // shown at top of page
   PLATFORM: "twitch",                   // "twitch" or "kick" (kick support added later)
   VIEWER_PAGE: "liveview.html",         // must sit next to this file
-  SHARE_TEXT: "🔴 LIVE NOW\nWatch here:\n{LINK}"
+  SHARE_TEXT: "🔴 LIVE NOW\nWatch here:\n{LINK}",
+  STREAM_KEY: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",  // <-- put your real Twitch stream key here
+  REPORTER_PASSWORD: "qwerty"                      // <-- password reporters must type to unlock this page
 };
 /* ====================================================== */
 
@@ -100,8 +119,8 @@ async function startCamera() {
 }
 
 async function goLive() {
-  const streamKey = document.getElementById("streamKey").value.trim();
-  if (!streamKey) return alert("Paste your Stream Key first.");
+  const streamKey = CONFIG.STREAM_KEY;
+  if (!streamKey || streamKey.indexOf("xxxx") === 0) return alert("Stream key not set. Edit CONFIG.STREAM_KEY in the code.");
   if (!localStream) return alert("Camera is not ready yet.");
 
   setButtons("connecting");
@@ -174,7 +193,13 @@ function setButtons(state) {
 function buildViewerLink() {
   const base = window.location.href.replace(/[^/]*\.html.*$/i, "");
   const title = encodeURIComponent(document.getElementById("titleInput").value.trim());
-  return base + CONFIG.VIEWER_PAGE + (title ? "?title=" + title : "");
+  const ticker = encodeURIComponent(document.getElementById("tickerInput").value.trim());
+  let url = base + CONFIG.VIEWER_PAGE;
+  const qp = [];
+  if (title) qp.push("title=" + title);
+  if (ticker) qp.push("ticker=" + ticker);
+  if (qp.length) url += "?" + qp.join("&");
+  return url;
 }
 
 function showViewerLink() {
@@ -182,9 +207,28 @@ function showViewerLink() {
   document.getElementById("linkBox").style.display = "block";
 }
 
+function tryUnlock() {
+  const entered = document.getElementById("gatePassword").value;
+  const errEl = document.getElementById("gateError");
+  if (entered === CONFIG.REPORTER_PASSWORD) {
+    document.getElementById("gateWrap").style.display = "none";
+    document.getElementById("appWrap").style.display = "flex";
+    startCamera();
+  } else {
+    errEl.textContent = "Wrong password. Try again.";
+    document.getElementById("gatePassword").value = "";
+    document.getElementById("gatePassword").focus();
+  }
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("siteNameLabel").textContent = CONFIG.SITE_NAME;
-  startCamera();
+
+  document.getElementById("unlockBtn").addEventListener("click", tryUnlock);
+  document.getElementById("gatePassword").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") tryUnlock();
+  });
+
   document.getElementById("goLiveBtn").addEventListener("click", goLive);
   document.getElementById("stopBtn").addEventListener("click", stopLive);
   document.getElementById("copyBtn").addEventListener("click", () => {
