@@ -23,6 +23,8 @@ button{width:100%;padding:14px;border-radius:10px;border:none;font-size:16px;fon
 .btn-share{background:#25d366;color:#04210f;}
 .btn-copy{background:#2a2e34;color:white;border:1px solid var(--border);}
 .btn-unlock{background:#3a7bfd;color:white;}
+.btn-switch{background:#2a2e34;color:white;border:1px solid var(--border);}
+.btn-switch:disabled{opacity:0.5;cursor:not-allowed;}
 .row{display:flex;gap:10px;}
 .row>*{flex:1;}
 .status{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--muted);}
@@ -50,7 +52,10 @@ button{width:100%;padding:14px;border-radius:10px;border:none;font-size:16px;fon
 
   <!-- MAIN APP: hidden until password is correct -->
   <div class="wrap" id="appWrap" style="display:none;">
-    <div class="card"><video id="preview" autoplay muted playsinline></video></div>
+    <div class="card">
+      <video id="preview" autoplay muted playsinline></video>
+      <button class="btn-switch" id="switchCamBtn" style="margin-top:10px;">🔄 Switch Camera</button>
+    </div>
 
     <div class="card">
       <label for="titleInput">Title (optional)</label>
@@ -95,16 +100,17 @@ button{width:100%;padding:14px;border-radius:10px;border:none;font-size:16px;fon
    keeps casual/curious people from going live on your channel.
 ====================================================== */
 const CONFIG = {
-  SITE_NAME: "Live News",              // shown at top of page
+  SITE_NAME: "AYAAN NEWS",              // shown at top of page
   PLATFORM: "twitch",                   // "twitch" or "kick" (kick support added later)
   VIEWER_PAGE: "liveview.html",         // must sit next to this file
   SHARE_TEXT: "🔴 LIVE NOW\nWatch here:\n{LINK}",
-  STREAM_KEY: "live_572601062_iKIhLOmLqdRS7vxB4jiMiLYvKIC7aY",  // <-- put your real Twitch stream key here
+  STREAM_KEY: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",  // <-- put your real Twitch stream key here
   REPORTER_PASSWORD: "qwerty"                      // <-- password reporters must type to unlock this page
 };
 /* ====================================================== */
 
 let pc = null, whipResourceUrl = null, localStream = null;
+let currentFacing = "user"; // "user" = front camera, "environment" = rear camera
 
 const WHIP_URL_BY_PLATFORM = {
   twitch: "https://g.webrtc.live-video.net:4443/v2/offer"
@@ -113,9 +119,42 @@ const WHIP_URL_BY_PLATFORM = {
 
 async function startCamera() {
   try {
-    localStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: true });
+    localStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: currentFacing }, audio: true });
     document.getElementById("preview").srcObject = localStream;
   } catch (e) { setStatus("Camera blocked. Allow camera access and reload.", false); }
+}
+
+async function switchCamera() {
+  const switchBtn = document.getElementById("switchCamBtn");
+  const nextFacing = currentFacing === "user" ? "environment" : "user";
+  switchBtn.disabled = true;
+  switchBtn.textContent = "Switching...";
+
+  try {
+    // Get a fresh video-only stream from the other-facing camera
+    const newStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: nextFacing }, audio: false });
+    const newVideoTrack = newStream.getVideoTracks()[0];
+
+    // If already live, swap the outgoing video track without dropping the connection
+    if (pc) {
+      const sender = pc.getSenders().find(s => s.track && s.track.kind === "video");
+      if (sender) await sender.replaceTrack(newVideoTrack);
+    }
+
+    // Swap the track feeding the local preview
+    const oldVideoTrack = localStream.getVideoTracks()[0];
+    if (oldVideoTrack) { localStream.removeTrack(oldVideoTrack); oldVideoTrack.stop(); }
+    localStream.addTrack(newVideoTrack);
+    document.getElementById("preview").srcObject = localStream;
+
+    currentFacing = nextFacing;
+  } catch (e) {
+    console.error(e);
+    alert("Could not switch camera: " + e.message + "\n(Some devices only have one camera, or the browser doesn't support switching.)");
+  } finally {
+    switchBtn.disabled = false;
+    switchBtn.textContent = "🔄 Switch Camera";
+  }
 }
 
 async function goLive() {
@@ -229,6 +268,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (e.key === "Enter") tryUnlock();
   });
 
+  document.getElementById("switchCamBtn").addEventListener("click", switchCamera);
   document.getElementById("goLiveBtn").addEventListener("click", goLive);
   document.getElementById("stopBtn").addEventListener("click", stopLive);
   document.getElementById("copyBtn").addEventListener("click", () => {
@@ -243,4 +283,3 @@ document.addEventListener("DOMContentLoaded", () => {
 </script>
 </body>
 </html>
-
