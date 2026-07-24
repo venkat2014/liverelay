@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>LiveCast - Watch Live</title>
+<style>
+:root{--bg:#0b0d10;--panel:#15181c;--border:#262b31;--text:#e9edf1;--muted:#8b939c;}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center;}
+.topbar{width:100%;padding:14px 16px;text-align:center;border-bottom:1px solid var(--border);letter-spacing:2px;font-weight:700;font-size:14px;color:var(--muted);}
+.topbar b{color:var(--text);}
+.wrap{width:100%;max-width:480px;padding:16px;display:flex;flex-direction:column;gap:14px;}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:14px;}
+.viewer-frame{width:100%;aspect-ratio:16/9;border:0;border-radius:10px;background:#000;}
+.chat-frame{width:100%;height:360px;border:0;border-radius:10px;background:#000;}
+</style>
+</head>
+<body>
+
+  <div class="topbar"><b id="siteNameLabel">LIVECAST</b> &nbsp;· LIVE NOW</div>
+
+  <div class="wrap">
+    <p id="liveTitle" style="display:none;text-align:center;font-weight:600;"></p>
+    <div class="card" id="playerBox"></div>
+    <div class="card" id="chatBox"></div>
+  </div>
+
+<script>
+/* ======================================================
+   EDIT HERE ONLY — everything below this box never changes.
+   Make a copy per website (liveview1.html, liveview2.html...)
+   and change these lines to match that copy of livecast.html
+====================================================== */
+const CONFIG = {
+  SITE_NAME: "AYAAN NEWS",
+  PLATFORM: "twitch",          // "twitch" or "kick"
+  CHANNEL: "venkat2014"        // Twitch channel name (or Kick channel later)
+};
+/* ====================================================== */
+
+document.addEventListener("DOMContentLoaded", () => {
+  document.getElementById("siteNameLabel").textContent = CONFIG.SITE_NAME;
+
+  const params = new URLSearchParams(window.location.search);
+  const title = params.get("title");
+  if (title) {
+    document.getElementById("liveTitle").textContent = decodeURIComponent(title);
+    document.getElementById("liveTitle").style.display = "block";
+  }
+
+  const parent = window.location.hostname || "localhost";
+  const playerBox = document.getElementById("playerBox");
+  const chatBox = document.getElementById("chatBox");
+
+  if (CONFIG.PLATFORM === "twitch") {
+    playerBox.innerHTML = `<iframe class="viewer-frame" src="https://player.twitch.tv/?channel=${CONFIG.CHANNEL}&parent=${parent}&muted=false" allowfullscreen></iframe>`;
+    chatBox.innerHTML = `<iframe class="chat-frame" src="https://www.twitch.tv/embed/${CONFIG.CHANNEL}/chat?parent=${parent}"></iframe>`;
+  }
+  // else if (CONFIG.PLATFORM === "kick") {
+  //   ... add Kick embed code here later ...
+  // }
+});
+</script>
+</body>
+</html>
