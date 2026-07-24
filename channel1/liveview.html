@@ -8,22 +8,37 @@
 :root{--bg:#0b0d10;--panel:#15181c;--border:#262b31;--text:#e9edf1;--muted:#8b939c;}
 *{box-sizing:border-box;}
 body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center;}
-.topbar{width:100%;padding:14px 16px;text-align:center;border-bottom:1px solid var(--border);letter-spacing:2px;font-weight:700;font-size:14px;color:var(--muted);}
+.topbar{position:relative;width:100%;padding:14px 60px;text-align:center;border-bottom:1px solid var(--border);letter-spacing:2px;font-weight:700;font-size:14px;color:var(--muted);}
 .topbar b{color:var(--text);}
-.wrap{width:100%;max-width:480px;padding:16px;display:flex;flex-direction:column;gap:14px;}
+.topbar img#siteLogo{position:absolute;top:6px;right:14px;height:32px;width:auto;border-radius:6px;display:none;}
+.wrap{width:100%;max-width:1200px;padding:16px;display:flex;flex-direction:column;gap:14px;}
 .card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:14px;}
-.viewer-frame{width:100%;aspect-ratio:16/9;border:0;border-radius:10px;background:#000;}
-.chat-frame{width:100%;height:360px;border:0;border-radius:10px;background:#000;}
+.main-row{display:flex;flex-direction:column;gap:14px;width:100%;}
+.player-col{flex:2 1 0;min-width:0;}
+.chat-col{flex:1 1 0;min-width:0;}
+.viewer-frame{width:100%;aspect-ratio:16/9;border:0;border-radius:10px;background:#000;display:block;}
+.chat-frame{width:100%;height:360px;border:0;border-radius:10px;background:#000;display:block;}
+
+/* Side-by-side layout on wider screens: chat on the right */
+@media (min-width:800px){
+  .main-row{flex-direction:row;align-items:stretch;}
+  .chat-frame{height:100%;min-height:480px;}
+}
 </style>
 </head>
 <body>
 
-  <div class="topbar"><b id="siteNameLabel">LIVECAST</b> &nbsp;· LIVE NOW</div>
+  <div class="topbar">
+    <b id="siteNameLabel">LIVECAST</b> &nbsp;· LIVE NOW
+    <img id="siteLogo" alt="logo">
+  </div>
 
   <div class="wrap">
     <p id="liveTitle" style="display:none;text-align:center;font-weight:600;"></p>
-    <div class="card" id="playerBox"></div>
-    <div class="card" id="chatBox"></div>
+    <div class="main-row">
+      <div class="player-col card" id="playerBox"></div>
+      <div class="chat-col card" id="chatBox"></div>
+    </div>
   </div>
 
 <script>
@@ -35,12 +50,19 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,S
 const CONFIG = {
   SITE_NAME: "AYAAN NEWS",
   PLATFORM: "twitch",          // "twitch" or "kick"
-  CHANNEL: "venkat2014"        // Twitch channel name (or Kick channel later)
+  CHANNEL: "venkat2014",       // Twitch channel name (or Kick channel later)
+  LOGO_FILE: "logo.png"        // logo file placed next to this page (empty string "" to hide)
 };
 /* ====================================================== */
 
 document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("siteNameLabel").textContent = CONFIG.SITE_NAME;
+
+  if (CONFIG.LOGO_FILE) {
+    const logo = document.getElementById("siteLogo");
+    logo.src = CONFIG.LOGO_FILE;
+    logo.style.display = "block";
+  }
 
   const params = new URLSearchParams(window.location.search);
   const title = params.get("title");
