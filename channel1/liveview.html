@@ -5,32 +5,44 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>LiveCast - Watch Live</title>
 <style>
-:root{--bg:#0b0d10;--panel:#15181c;--border:#262b31;--text:#e9edf1;--muted:#8b939c;}
+:root{--bg:#0b0d10;--text:#e9edf1;--muted:#8b939c;}
 *{box-sizing:border-box;}
-body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center;}
-.topbar{position:relative;width:100%;padding:14px 56px;text-align:center;border-bottom:1px solid var(--border);letter-spacing:2px;font-weight:700;font-size:14px;color:var(--muted);}
-.topbar b{color:var(--text);}
-.topbar img#siteLogo{position:absolute;top:6px;right:10px;height:30px;width:auto;max-width:110px;object-fit:contain;border-radius:6px;display:none;}
-.wrap{width:100%;max-width:700px;padding:16px;display:flex;flex-direction:column;gap:14px;}
-.card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:14px;}
-.viewer-frame{width:100%;aspect-ratio:16/9;border:0;border-radius:10px;background:#000;display:block;}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;width:100%;height:100%;overflow:hidden;}
+
+/* Player fills the entire viewport from the start */
+#stage{position:fixed;inset:0;width:100%;height:100%;background:#000;}
+.viewer-frame{width:100%;height:100%;border:0;display:block;}
+
+/* Overlay bar on top of the video (title + logo), doesn't block video controls below it */
+.overlay-top{position:absolute;top:0;left:0;right:0;padding:10px 14px;display:flex;align-items:center;justify-content:center;background:linear-gradient(to bottom, rgba(0,0,0,.65), rgba(0,0,0,0));pointer-events:none;z-index:5;}
+.overlay-top b{letter-spacing:2px;font-size:13px;color:var(--text);}
+.overlay-top .sub{color:var(--muted);font-size:13px;margin-left:6px;}
+#siteLogo{position:absolute;top:8px;right:10px;height:32px;width:auto;max-width:110px;object-fit:contain;border-radius:6px;display:none;pointer-events:none;z-index:6;}
+
+#liveTitle{position:absolute;top:40px;left:0;right:0;text-align:center;font-weight:600;font-size:14px;padding:0 14px;display:none;z-index:5;pointer-events:none;text-shadow:0 1px 4px rgba(0,0,0,.8);}
+
+/* Fullscreen / rotate button, floating bottom-right */
+#fsBtn{position:absolute;bottom:16px;right:14px;z-index:10;background:rgba(20,22,26,0.75);color:var(--text);border:1px solid rgba(255,255,255,0.25);border-radius:10px;padding:10px 14px;font-size:14px;font-weight:600;cursor:pointer;backdrop-filter:blur(4px);}
+#fsBtn:active{background:rgba(20,22,26,0.95);}
 
 @media (max-width:480px){
-  .topbar{padding:12px 48px;font-size:12px;}
-  .topbar img#siteLogo{height:24px;max-width:90px;top:8px;right:8px;}
+  .overlay-top b{font-size:12px;}
+  #siteLogo{height:26px;max-width:90px;}
+  #liveTitle{font-size:13px;top:36px;}
+  #fsBtn{padding:9px 12px;font-size:13px;}
 }
 </style>
 </head>
 <body>
 
-  <div class="topbar">
-    <b id="siteNameLabel">LIVECAST</b> &nbsp;· LIVE NOW
+  <div id="stage">
+    <div class="overlay-top">
+      <b id="siteNameLabel">LIVECAST</b><span class="sub">&nbsp;· LIVE NOW</span>
+    </div>
     <img id="siteLogo" alt="logo">
-  </div>
-
-  <div class="wrap">
-    <p id="liveTitle" style="display:none;text-align:center;font-weight:600;"></p>
-    <div class="card" id="playerBox"></div>
+    <p id="liveTitle"></p>
+    <div id="playerBox" style="width:100%;height:100%;"></div>
+    <button id="fsBtn">⛶ Fullscreen</button>
   </div>
 
 <script>
@@ -52,8 +64,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
   if (CONFIG.LOGO_FILE) {
     const logo = document.getElementById("siteLogo");
+    logo.onload = () => { logo.style.display = "block"; };
+    logo.onerror = () => {
+      console.warn("Logo failed to load. Check that '" + CONFIG.LOGO_FILE + "' exists next to this HTML file (exact filename, case-sensitive).");
+      logo.style.display = "none";
+    };
     logo.src = CONFIG.LOGO_FILE;
-    logo.style.display = "block";
   }
 
   const params = new URLSearchParams(window.location.search);
@@ -72,6 +88,42 @@ document.addEventListener("DOMContentLoaded", () => {
   // else if (CONFIG.PLATFORM === "kick") {
   //   ... add Kick embed code here later ...
   // }
+
+  // Fullscreen + orientation lock (must be triggered by a real tap/click — browsers block this on page load)
+  const stage = document.getElementById("stage");
+  const fsBtn = document.getElementById("fsBtn");
+
+  async function enterFullscreen() {
+    try {
+      if (stage.requestFullscreen) await stage.requestFullscreen();
+      else if (stage.webkitRequestFullscreen) await stage.webkitRequestFullscreen();
+    } catch (e) { console.warn("Fullscreen request failed:", e); }
+
+    try {
+      if (screen.orientation && screen.orientation.lock) {
+        await screen.orientation.lock("landscape");
+      }
+    } catch (e) {
+      // Expected to fail on iOS Safari and some desktop browsers — no action needed.
+      console.warn("Orientation lock not available on this browser:", e);
+    }
+  }
+
+  function exitFullscreen() {
+    if (document.exitFullscreen) document.exitFullscreen().catch(()=>{});
+    else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+    try { if (screen.orientation && screen.orientation.unlock) screen.orientation.unlock(); } catch(e){}
+  }
+
+  fsBtn.addEventListener("click", () => {
+    const isFs = document.fullscreenElement || document.webkitFullscreenElement;
+    if (isFs) { exitFullscreen(); fsBtn.textContent = "⛶ Fullscreen"; }
+    else { enterFullscreen(); fsBtn.textContent = "✕ Exit"; }
+  });
+
+  document.addEventListener("fullscreenchange", () => {
+    if (!document.fullscreenElement) fsBtn.textContent = "⛶ Fullscreen";
+  });
 });
 </script>
 </body>
